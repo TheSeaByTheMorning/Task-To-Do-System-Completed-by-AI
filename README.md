@@ -5,7 +5,8 @@
 
 一个功能完善的任务待办应用，支持任务管理、进度追踪、数据可视化和成就系统，帮助用户高效管理日常任务，提升工作效率和成就感。
 
-![任务待办应用截图](https://example.com/screenshot.png)
+![1](https://github.com/user-attachments/assets/0fd8005c-706d-45ef-af9d-3b167c2bee79)
+
 
 ## 功能特点
 
