@@ -1,0 +1,1590 @@
+<html lang="zh-CN"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>任务待办</title>
+    <!-- Tailwind CSS v3 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+    <!-- AOS Animation Library -->
+    <link href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6',
+                        secondary: '#6b7280',
+                        dark: '#1e293b',
+                        'dark-light': '#334155',
+                        'dark-card': '#0f172a',
+                        success: '#10b981',
+                        warning: '#f59e0b',
+                        danger: '#ef4444'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .bg-gradient-primary {
+                background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+            }
+            .text-gradient {
+                background-clip: text;
+                -webkit-background-clip: text;
+                color: transparent;
+                background-image: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+            }
+            .progress-bar {
+                transition: width 0.5s ease-in-out;
+            }
+            .card-hover {
+                transition: all 0.3s ease;
+            }
+            .card-hover:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.1), 0 10px 10px -5px rgba(59, 130, 246, 0.04);
+            }
+            .todo-item {
+                transition: all 0.3s ease;
+            }
+            /* 自定义滚动条样式 */
+            .custom-scrollbar::-webkit-scrollbar {
+                width: 6px;
+            }
+            .custom-scrollbar::-webkit-scrollbar-track {
+                background: rgba(31, 41, 55, 0.5);
+                border-radius: 3px;
+            }
+            .custom-scrollbar::-webkit-scrollbar-thumb {
+                background: rgba(107, 114, 128, 0.5);
+                border-radius: 3px;
+            }
+            .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+                background: rgba(107, 114, 128, 0.7);
+            }
+            /* Firefox 滚动条样式 */
+            .custom-scrollbar {
+                scrollbar-width: thin;
+                scrollbar-color: rgba(107, 114, 128, 0.5) rgba(31, 41, 55, 0.5);
+            }
+            .todo-item:hover {
+                background-color: rgba(30, 41, 59, 0.8);
+            }
+            .todo-item.completed {
+                opacity: 0.7;
+            }
+            .todo-item.completed .toggle-complete i {
+                color: #10b981;
+            }
+            .todo-item.completed span {
+                text-decoration: line-through;
+                color: #6b7280;
+            }
+            .achievement-card {
+                transition: all 0.3s ease;
+            }
+            .achievement-card.unlocked {
+                border-color: #3b82f6;
+                background-color: rgba(59, 130, 246, 0.1);
+            }
+            .achievement-card.unlocked .lock-icon {
+                color: #f59e0b;
+            }
+            .achievement-card.unlocked h3 {
+                color: #f59e0b;
+            }
+            .no-pointer-events {
+                cursor: default !important;
+                pointer-events: auto !important;
+            }
+            /* 句子淡入动画 */
+            .fade-in {
+                animation: fadeIn 0.5s ease-in-out;
+            }
+            @keyframes fadeIn {
+                from { opacity: 0; }
+                to { opacity: 1; }
+            }
+            /* 加载动画 */
+            .loading-spinner {
+                display: inline-block;
+                width: 16px;
+                height: 16px;
+                border: 2px solid rgba(255,255,255,.3);
+                border-radius: 50%;
+                border-top-color: #f59e0b;
+                animation: spin 1s ease-in-out infinite;
+            }
+            @keyframes spin {
+                to { transform: rotate(360deg); }
+            }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-gray-900 to-gray-800 min-h-screen text-white">
+    <div class="container mx-auto px-4 py-8 max-w-6xl">
+        <!-- 顶部导航 -->
+        <header class="flex justify justify-between items-center mb-8">
+            <div>
+                <h1 class="text-3xl font-bold text-gradient">
+                    <span id="customTitlePart" class="no-pointer-events">任务</span>待办
+                </h1>
+                <p class="text-gray-400 mt-1">高效管理，轻松完成！</p>
+            </div>
+            
+            <!-- 文件操作按钮 -->
+            <div class="flex space-x-3">
+                <button id="loadDataBtn" class="bg-dark-light hover:bg-dark text-white px-4 py-2 rounded-lg transition-colors flex items-center">
+                    <i class="fa fa-folder-open mr-2"></i> 加载数据
+                </button>
+                <button id="saveDataBtn" class="bg-primary hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
+                    <i class="fa fa-save mr-2"></i> 保存数据
+                </button>
+                <button id="newDataBtn" class="bg-danger hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
+                    <i class="fa fa-file-text-o mr-2"></i> 新建数据
+                </button>
+            </div>
+        </header>
+        
+        <!-- 主内容区域 -->
+        <main id="mainGrid" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- 左侧控制面板 -->
+            <div id="controlPanel" class="lg:col-span-1">
+                <div class="bg-dark-card rounded-lg p-6 border border-gray-700 h-full">
+                    <!-- 添加待办 -->
+                    <div class="mb-6">
+                        <div class="flex justify-between items-center mb-3">
+                            <h3 class="text-secondary text-sm uppercase tracking-wider">添加新待办</h3>
+                        </div>
+                        
+                        <div class="flex">
+                            <input type="text" id="todoInput" placeholder="输入待办事项..." class="flex-1 px-4 py-2 bg-dark-light border border-gray-700 rounded-l-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent text-white">
+                            <button id="addTodoBtn" class="bg-primary hover:bg-blue-600 text-white px-4 py-2 rounded-r-lg transition-colors">
+                                <i class="fa fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- 批量导入待办 -->
+                    <div class="mb-6">
+                        <div class="flex justify-between items-center mb-3">
+                            <h3 class="text-secondary text-sm uppercase tracking-wider">批量导入待办</h3>
+                            <button id="toggleImportBtn" class="text-primary hover:text-blue-400 text-xs transition-colors">
+                                <i class="fa fa-chevron-down"></i> 展开
+                            </button>
+                        </div>
+                        
+                        <div id="importSection" class="hidden">
+                            <textarea id="batchTodoInput" placeholder="粘贴待办列表，每行一个待办事项..." class="w-full h-32 px-4 py-2 bg-dark-light border border-gray-700 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent text-white resize-none mb-3 custom-scrollbar"></textarea>
+                            
+                            <div class="flex justify-between items-center">
+                                <div class="text-xs text-secondary">
+                                    <span id="importCount">0</span> 个待办将被导入
+                                </div>
+                                <button id="importTodosBtn" class="bg-primary hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors">
+                                    <i class="fa fa-upload mr-1"></i> 导入
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 待办列表 -->
+                    <div>
+                        <div class="flex justify-between items-center mb-3">
+                            <h3 class="text-secondary text-sm uppercase tracking-wider">待办列表</h3>
+                            <span id="todoCount" class="bg-primary/20 text-primary text-xs px-2 py-1 rounded">0 个待办</span>
+                        </div>
+                        
+                        <div id="todoList" class="space-y-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                            <!-- 待办项将通过JavaScript动态添加 -->
+                            <div class="text-center text-gray-500 py-8" id="emptyState">
+                                <i class="fa fa-tasks text-4xl mb-3 opacity-50"></i>
+                                <p>暂无待办，请添加待办事项</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 鼓励小贴士 -->
+                    <div class="mt-6">
+                        <div class="flex justify-between items-center mb-3">
+                            <h3 class="text-secondary text-sm uppercase tracking-wider">鼓励小贴士</h3>
+                            <button id="refreshMotivationBtn" class="text-primary hover:text-blue-400 text-xs transition-colors flex items-center">
+                                <i class="fa fa-refresh mr-1"></i> 
+                                <span id="refreshBtnText">换一条</span>
+                                <span id="refreshLoading" class="hidden ml-1"><span class="loading-spinner"></span></span>
+                            </button>
+                        </div>
+                        
+                        <div class="bg-dark-light p-4 rounded-lg border border-gray-700 relative overflow-hidden">
+                            <div class="absolute top-0 right-0 w-16 h-16 opacity-10">
+                                <i class="fa fa-lightbulb-o text-6xl text-yellow-500"></i>
+                            </div>
+                            <p id="motivationQuote" class="text-sm text-gray-200 relative z-10 leading-relaxed">坚持就是胜利。即使面对困难和挫折，也要坚持完成自己的任务，成功就在不远处。</p>
+                            <p id="motivationSource" class="text-xs text-gray-500 mt-2 text-right relative z-10">
+                                —— 网络热门
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 右侧主要内容区域 -->
+            <div id="contentArea" class="lg:col-span-2">
+                <!-- 待办进度卡片 -->
+                <div class="bg-dark-card rounded-lg p-6 border border-gray-700 mb-6">
+                    <div class="flex justify-between items-start mb-6">
+                        <div>
+                            <h2 class="text-xl font-semibold text-white mb-1">待办进度概览</h2>
+                            <p class="text-secondary">跟踪您的待办完成情况</p>
+                        </div>
+                    </div>
+                    
+                    <!-- 大型进度条 -->
+                    <div class="mb-8">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-secondary">总体完成度</span>
+                            <span id="progressPercentage" class="text-4xl font-bold text-primary">0%</span>
+                        </div>
+                        <div class="h-3 bg-dark-light rounded-full overflow-hidden">
+                            <div id="progressBar" class="h-full bg-primary progress-bar" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- 待办统计图表 -->
+                    <div>
+                        <h3 class="text-secondary text-sm uppercase tracking-wider mb-4">待办统计</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- 图表 -->
+                            <div class="bg-dark p-4 rounded-lg border border-gray-800">
+                                <canvas id="progressChart" height="200"></canvas>
+                            </div>
+                            
+                            <!-- 统计数据 -->
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="bg-dark p-4 rounded-lg border border-gray-800">
+                                    <p class="text-secondary text-sm">总待办数</p>
+                                    <p id="totalTodos" class="text-2xl font-bold text-white">0</p>
+                                </div>
+                                <div class="bg-dark p-4 rounded-lg border border-gray-800">
+                                    <p class="text-secondary text-sm">已完成</p>
+                                    <p id="completedTodos" class="text-2xl font-bold text-success">0</p>
+                                </div>
+                                <div class="bg-dark p-4 rounded-lg border border-gray-800">
+                                    <p class="text-secondary text-sm">剩余</p>
+                                    <p id="remainingTodos" class="text-2xl font-bold text-warning">0</p>
+                                </div>
+                                <div class="bg-dark p-4 rounded-lg border border-gray-800">
+                                    <p class="text-secondary text-sm">完成率</p>
+                                    <p id="completionRate" class="text-2xl font-bold text-primary">0%</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 成就系统卡片 -->
+                <div class="bg-dark-card rounded-lg p-6 border border-gray-700">
+                    <div class="flex justify-between items-start mb-6">
+                        <div>
+                            <h2 class="text-xl font-semibold text-white mb-1 flex items-center">
+                                <i class="fa fa-trophy text-yellow-500 mr-2"></i>
+                                成就系统
+                            </h2>
+                            <p class="text-secondary">解锁待办成就，获得完成动力</p>
+                        </div>
+                    </div>
+                    
+                    <!-- 成就卡片列表 -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <!-- 起步者成就 -->
+                        <div class="achievement-card bg-dark p-4 rounded-lg border border-gray-800 text-center card-hover">
+                            <div class="lock-icon text-3xl text-gray-600 mb-3">
+                                <i class="fa fa-lock"></i>
+                            </div>
+                            <h3 class="font-medium text-white text-center">起步者</h3>
+                            <p class="text-xs text-secondary text-center mt-1">完成25%的待办事项</p>
+                        </div>
+                        
+                        <!-- 执行者成就 -->
+                        <div class="achievement-card bg-dark p-4 rounded-lg border border-gray-800 text-center card-hover">
+                            <div class="lock-icon text-3xl text-gray-600 mb-3">
+                                <i class="fa fa-lock"></i>
+                            </div>
+                            <h3 class="font-medium text-white text-center">执行者</h3>
+                            <p class="text-xs text-secondary text-center mt-1">完成50%的待办事项</p>
+                        </div>
+                        
+                        <!-- 高效者成就 -->
+                        <div class="achievement-card bg-dark p-4 rounded-lg border border-gray-800 text-center card-hover">
+                            <div class="lock-icon text-3xl text-gray-600 mb-3">
+                                <i class="fa fa-lock"></i>
+                            </div>
+                            <h3 class="font-medium text-white text-center">高效者</h3>
+                            <p class="text-xs text-secondary text-center mt-1">完成75%的待办事项</p>
+                        </div>
+                        
+                        <!-- 完成大师成就 -->
+                        <div class="achievement-card bg-dark p-4 rounded-lg border border-gray-800 text-center card-hover">
+                            <div class="lock-icon text-3xl text-gray-600 mb-3">
+                                <i class="fa fa-lock"></i>
+                            </div>
+                            <h3 class="font-medium text-white text-center">完成大师</h3>
+                            <p class="text-xs text-secondary text-center mt-1">完成全部待办事项</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <!-- 页脚 -->
+        <footer class="bg-dark-card text-secondary py-6 mt-12 border-t border-gray-800">
+            <div class="container mx-auto px-4 text-center">
+                <p class="font-medium">任务待办 © 2025</p>
+                <p class="text-sm text-gray-600 mt-2">高效管理，轻松完成！</p>
+            </div>
+        </footer>
+    </div>
+    
+    <script>
+        // 初始化AOS动画库
+        document.addEventListener('DOMContentLoaded', function() {
+            AOS.init({
+                duration: 800,
+                easing: 'ease-in-out',
+                once: true
+            });
+        });
+
+        // 待办事项数据结构
+        let todos = [];
+        let todoHistory = {};
+        let unlockedAchievements = [];
+        let progressChart = null;
+        
+        // 数据文件名称
+        const DATA_FILE_NAME = '任务待办数据.txt';
+        
+        // DOM元素
+        const todoInput = document.getElementById('todoInput');
+        const addTodoBtn = document.getElementById('addTodoBtn');
+        const todoList = document.getElementById('todoList');
+        const emptyState = document.getElementById('emptyState');
+        const progressBar = document.getElementById('progressBar');
+        const progressPercentage = document.getElementById('progressPercentage');
+        const totalTodosEl = document.getElementById('totalTodos');
+        const completedTodosEl = document.getElementById('completedTodos');
+        const remainingTodosEl = document.getElementById('remainingTodos');
+        const completionRateEl = document.getElementById('completionRate');
+        const todoCount = document.getElementById('todoCount');
+        const achievementCards = document.querySelectorAll('.achievement-card');
+        
+        // 文件操作按钮
+        const loadDataBtn = document.getElementById('loadDataBtn');
+        const saveDataBtn = document.getElementById('saveDataBtn');
+        const newDataBtn = document.getElementById('newDataBtn');
+        
+        // 初始化应用
+        function initApp() {
+            console.log("应用初始化...");
+            
+            // 加载并设置自定义标题
+            loadAndSetCustomTitle();
+            
+            // 添加待办列表容器的事件委托，实现整行点击功能
+            todoList.addEventListener('click', function(e) {
+                // 获取点击的待办项
+                const todoItem = e.target.closest('.todo-item');
+                
+                if (todoItem) {
+                    // 检查是否点击的是删除按钮
+                    const deleteBtn = e.target.closest('.delete-todo');
+                    
+                    if (!deleteBtn) {
+                        // 获取待办ID
+                        const todoId = parseInt(todoItem.querySelector('.toggle-complete').dataset.id);
+                        
+                        // 切换待办完成状态
+                        toggleTodoCompleteById(todoId);
+                    }
+                }
+            });
+            
+            // 从本地存储加载数据
+            const dataLoaded = loadDataFromLocalStorage();
+            
+            // 如果没有找到保存的数据，保持空状态
+            if (!dataLoaded) {
+                console.log('没有找到保存的数据，保持空状态');
+                todos = [];
+                todoHistory = {};
+                unlockedAchievements = [];
+            }
+            
+            // 更新页脚标题
+            updateFooterTitle();
+            
+            // 初始化进度图表
+            initProgressChart();
+            
+            // 渲染待办列表
+            renderTodoList();
+            
+            // 更新进度统计
+            updateProgress();
+            
+            // 更新成就卡片
+            updateAchievementCards();
+            
+            // 事件监听
+            addTodoBtn.addEventListener('click', addTodo);
+            todoInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') addTodo();
+            });
+            
+            // 文件操作事件监听
+            loadDataBtn.addEventListener('click', selectFileAndLoadData);
+            saveDataBtn.addEventListener('click', saveDataToFile);
+            newDataBtn.addEventListener('click', createNewData);
+            
+            // 批量导入相关事件
+            const toggleImportBtn = document.getElementById('toggleImportBtn');
+            const importSection = document.getElementById('importSection');
+            const batchTodoInput = document.getElementById('batchTodoInput');
+            const importCount = document.getElementById('importCount');
+            const importTodosBtn = document.getElementById('importTodosBtn');
+            
+            // 切换导入区域显示/隐藏
+            toggleImportBtn.addEventListener('click', function() {
+                importSection.classList.toggle('hidden');
+                
+                if (importSection.classList.contains('hidden')) {
+                    toggleImportBtn.innerHTML = '<i class="fa fa-chevron-down"></i> 展开';
+                } else {
+                    toggleImportBtn.innerHTML = '<i class="fa fa-chevron-up"></i> 收起';
+                    // 自动聚焦到文本区域
+                    batchTodoInput.focus();
+                }
+            });
+            
+            // 实时更新导入计数
+            batchTodoInput.addEventListener('input', function() {
+                const importedTodoNames = getTodoListFromText(batchTodoInput.value);
+                importCount.textContent = importedTodoNames.length;
+            });
+            
+            // 导入按钮点击事件
+            importTodosBtn.addEventListener('click', importTodos);
+        }
+        
+        // 从本地存储加载数据
+        function loadDataFromLocalStorage() {
+            try {
+                // 尝试从本地存储加载
+                const savedData = localStorage.getItem('task_todo_data');
+                if (savedData) {
+                    const data = JSON.parse(savedData);
+                    
+                    // 验证数据格式
+                    if (data.todos && Array.isArray(data.todos)) {
+                        todos = data.todos;
+                    }
+                    
+                    if (data.todoHistory && typeof data.todoHistory === 'object') {
+                        todoHistory = data.todoHistory;
+                    }
+                    
+                    if (data.unlockedAchievements && Array.isArray(data.unlockedAchievements)) {
+                        unlockedAchievements = data.unlockedAchievements;
+                    }
+                    
+                    // 恢复自定义标题
+                    if (data.appTitle) {
+                        const customTitlePart = document.getElementById('customTitlePart');
+                        customTitlePart.textContent = data.appTitle;
+                        // 更新页面标题
+                        document.title = `${data.appTitle}待办`;
+                        // 更新页脚标题
+                        updateFooterTitle();
+                    }
+                    
+                    console.log('成功从本地存储加载数据');
+                    return true;
+                }
+            } catch (error) {
+                console.error('从本地存储加载数据失败:', error);
+            }
+            
+            return false;
+        }
+        
+        // 保存数据到本地存储
+        function saveDataToLocalStorage() {
+            try {
+                const data = {
+                    appTitle: document.getElementById('customTitlePart').textContent,
+                    todos: todos,
+                    todoHistory: todoHistory,
+                    unlockedAchievements: unlockedAchievements,
+                    lastUpdated: new Date().toISOString()
+                };
+                
+                localStorage.setItem('task_todo_data', JSON.stringify(data));
+                console.log('数据已保存到本地存储');
+                return true;
+            } catch (error) {
+                console.error('保存数据到本地存储失败:', error);
+                return false;
+            }
+        }
+        
+        // 添加待办
+        function addTodo() {
+            const todoName = todoInput.value.trim();
+            
+            if (!todoName) {
+                alert('请输入待办事项');
+                return;
+            }
+            
+            // 检查是否已存在相同名称的待办
+            const existingTodo = todos.find(todo => todo.name === todoName);
+            if (existingTodo) {
+                alert('已存在同名待办，请输入不同的名称');
+                return;
+            }
+            
+            const newTodo = {
+                id: Date.now(),
+                name: todoName,
+                completed: false
+            };
+            
+            todos.push(newTodo);
+            
+            // 保存数据
+            saveDataToLocalStorage();
+            
+            // 清空输入框
+            todoInput.value = '';
+            
+            // 渲染待办列表
+            renderTodoList();
+            
+            // 更新进度统计
+            updateProgress();
+            
+            // 更新图表
+            initProgressChart();
+            
+            // 动画效果
+            const newTodoElement = document.querySelector(`.todo-item[data-id="${newTodo.id}"]`);
+            if (newTodoElement) {
+                newTodoElement.style.opacity = '0';
+                newTodoElement.style.transform = 'translateY(20px)';
+                
+                setTimeout(() => {
+                    newTodoElement.style.transition = 'all 0.3s ease';
+                    newTodoElement.style.opacity = '1';
+                    newTodoElement.style.transform = 'translateY(0)';
+                }, 10);
+            }
+            
+            console.log('添加待办:', newTodo);
+        }
+        
+        // 渲染待办列表
+        function renderTodoList() {
+            if (todos.length === 0) {
+                emptyState.classList.remove('hidden');
+                todoList.innerHTML = '';
+                todoList.appendChild(emptyState);
+                todoCount.textContent = '0 个待办';
+                return;
+            }
+            
+            emptyState.classList.add('hidden');
+            todoList.innerHTML = '';
+            
+            todos.forEach(todo => {
+                const todoItem = document.createElement('div');
+                todoItem.className = `flex items-center justify-between p-3 rounded-lg border border-gray-700 bg-dark-light ${todo.completed ? 'completed' : ''} todo-item`;
+                todoItem.dataset.id = todo.id;
+                
+                todoItem.innerHTML = `
+                    <div class="flex items-center flex-1">
+                        <div class="toggle-complete mr-3 cursor-pointer" data-id="${todo.id}">
+                            <i class="fa ${todo.completed ? 'fa-check-circle text-xl' : 'fa-circle-o text-xl'}"></i>
+                        </div>
+                        <span class="truncate">${todo.name}</span>
+                    </div>
+                    <div class="delete-todo ml-4 text-gray-400 hover:text-danger cursor-pointer" data-id="${todo.id}">
+                        <i class="fa fa-trash"></i>
+                    </div>
+                `;
+                
+                // 添加删除按钮事件
+                const deleteBtn = todoItem.querySelector('.delete-todo');
+                deleteBtn.addEventListener('click', function() {
+                    const todoId = parseInt(this.dataset.id);
+                    deleteTodoById(todoId);
+                });
+                
+                todoList.appendChild(todoItem);
+            });
+            
+            todoCount.textContent = `${todos.length} 个待办`;
+        }
+        
+        // 切换待办完成状态
+        function toggleTodoCompleteById(todoId) {
+            const todoIndex = todos.findIndex(todo => todo.id === todoId);
+            
+            if (todoIndex !== -1) {
+                const todo = todos[todoIndex];
+                const wasCompleted = todo.completed;
+                
+                // 更新待办状态
+                todo.completed = !wasCompleted;
+                
+                // 更新待办历史
+                updateTodoHistory(todo, !wasCompleted);
+                
+                // 保存数据
+                saveDataToLocalStorage();
+                
+                // 更新UI
+                const todoItem = document.querySelector(`.todo-item[data-id="${todoId}"]`);
+                if (todoItem) {
+                    if (todo.completed) {
+                        todoItem.classList.add('completed');
+                        todoItem.querySelector('.toggle-complete i').className = 'fa fa-check-circle text-xl';
+                    } else {
+                        todoItem.classList.remove('completed');
+                        todoItem.querySelector('.toggle-complete i').className = 'fa fa-circle-o text-xl';
+                    }
+                }
+                
+                // 更新进度统计
+                updateProgress();
+                
+                // 更新图表
+                initProgressChart();
+                
+                // 检查成就
+                checkAchievements();
+                
+                console.log(`切换待办完成状态: ${todo.name} (${todo.completed})`);
+            }
+        }
+        
+        // 删除待办
+        function deleteTodoById(todoId) {
+            const todoIndex = todos.findIndex(todo => todo.id === todoId);
+            
+            if (todoIndex !== -1) {
+                const todo = todos[todoIndex];
+                
+                if (confirm(`确定要删除"${todo.name}"吗？`)) {
+                    // 从待办历史中移除
+                    removeFromTodoHistory(todo);
+                    
+                    // 从列表中移除
+                    todos.splice(todoIndex, 1);
+                    
+                    // 保存数据
+                    saveDataToLocalStorage();
+                    
+                    // 更新UI
+                    const todoItem = document.querySelector(`.todo-item[data-id="${todoId}"]`);
+                    if (todoItem) {
+                        todoItem.style.opacity = '0';
+                        todoItem.style.transform = 'translateX(-20px)';
+                        
+                        setTimeout(() => {
+                            renderTodoList();
+                            updateProgress();
+                            initProgressChart();
+                            checkAchievements();
+                        }, 300);
+                    }
+                    
+                    console.log(`删除待办: ${todo.name}`);
+                }
+            }
+        }
+        
+        // 更新待办历史
+        function updateTodoHistory(todo, completed) {
+            const today = new Date().toISOString().split('T')[0];
+            
+            if (completed) {
+                // 完成待办，增加历史记录
+                if (!todoHistory[today]) {
+                    todoHistory[today] = 0;
+                }
+                todoHistory[today]++;
+            } else {
+                // 取消完成，减少历史记录
+                if (todoHistory[today] > 0) {
+                    todoHistory[today]--;
+                    
+                    // 如果当天没有完成任何待办，删除该日期的记录
+                    if (todoHistory[today] === 0) {
+                        delete todoHistory[today];
+                    }
+                }
+            }
+        }
+        
+        // 从待办历史中移除
+        function removeFromTodoHistory(todo) {
+            if (todo.completed) {
+                // 查找包含该待办完成记录的日期
+                for (const date in todoHistory) {
+                    if (todoHistory[date] > 0) {
+                        todoHistory[date]--;
+                        
+                        // 如果当天没有完成任何待办，删除该日期的记录
+                        if (todoHistory[date] === 0) {
+                            delete todoHistory[date];
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+        
+        // 更新进度统计
+        function updateProgress() {
+            const total = todos.length;
+            const completed = todos.filter(todo => todo.completed).length;
+            const remaining = total - completed;
+            const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+            
+            // 更新进度条
+            progressBar.style.width = `${completionRate}%`;
+            progressPercentage.textContent = `${completionRate}%`;
+            
+            // 根据完成率改变进度条颜色
+            if (completionRate === 0) {
+                progressBar.className = 'h-full bg-gray-600 progress-bar';
+            } else if (completionRate < 25) {
+                progressBar.className = 'h-full bg-danger progress-bar';
+            } else if (completionRate < 50) {
+                progressBar.className = 'h-full bg-blue-500 progress-bar';
+            } else if (completionRate < 75) {
+                progressBar.className = 'h-full bg-primary progress-bar';
+            } else {
+                progressBar.className = 'h-full bg-success progress-bar';
+            }
+            
+            // 更新统计数据
+            totalTodosEl.textContent = total;
+            completedTodosEl.textContent = completed;
+            remainingTodosEl.textContent = remaining;
+            completionRateEl.textContent = `${completionRate}%`;
+        }
+        
+        // 初始化进度图表
+        function initProgressChart() {
+            const ctx = document.getElementById('progressChart').getContext('2d');
+            
+            // 销毁旧图表
+            if (progressChart) {
+                progressChart.destroy();
+            }
+            
+            const total = todos.length;
+            const completed = todos.filter(todo => todo.completed).length;
+            const remaining = total - completed;
+            
+            // 计算完成率
+            const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+            
+            // 当100%完成时，移除边框以避免出现缝隙
+            const borderWidth = completionRate === 100 ? 0 : 2;
+            
+            // 创建新图表
+            progressChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['已完成', '未完成'],
+                    datasets: [{
+                        data: [completed, remaining],
+                        backgroundColor: [
+                            '#10b981', // 绿色 - 已完成
+                            '#334155'  // 深灰色 - 未完成
+                        ],
+                        borderColor: [
+                            '#0f172a',
+                            '#0f172a'
+                        ],
+                        borderWidth: borderWidth
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '70%',
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: '#9ca3af',
+                                font: {
+                                    size: 12
+                                },
+                                padding: 20
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // 检查成就
+        function checkAchievements() {
+            const total = todos.length;
+            
+            if (total === 0) {
+                // 如果没有待办，重置所有成就
+                if (unlockedAchievements.length > 0) {
+                    unlockedAchievements = [];
+                    saveDataToLocalStorage();
+                    updateAchievementCards();
+                }
+                return;
+            }
+            
+            const completed = todos.filter(todo => todo.completed).length;
+            const completionRate = Math.round((completed / total) * 100);
+            
+            // 定义成就
+            const achievements = [
+                { id: 'beginner', title: '起步者', description: '完成25%的待办事项', threshold: 25 },
+                { id: 'intermediate', title: '执行者', description: '完成50%的待办事项', threshold: 50 },
+                { id: 'advanced', title: '高效者', description: '完成75%的待办事项', threshold: 75 },
+                { id: 'master', title: '完成大师', description: '完成全部待办事项', threshold: 100 }
+            ];
+            
+            // 检查每个成就
+            achievements.forEach(achievement => {
+                // 检查是否应该解锁成就
+                if (!unlockedAchievements.includes(achievement.id) && completionRate >= achievement.threshold) {
+                    unlockAchievement(achievement.id, achievement.title, achievement.description);
+                }
+                // 检查是否应该锁定成就（不再满足条件）
+                else if (unlockedAchievements.includes(achievement.id) && completionRate < achievement.threshold) {
+                    lockAchievement(achievement.id);
+                }
+            });
+            
+            // 更新成就卡片显示
+            updateAchievementCards();
+        }
+        
+        // 锁定成就（取消已解锁的成就）
+        function lockAchievement(achievementId) {
+            // 从已解锁成就列表中移除
+            const index = unlockedAchievements.indexOf(achievementId);
+            if (index !== -1) {
+                unlockedAchievements.splice(index, 1);
+                
+                // 保存数据
+                saveDataToLocalStorage();
+                
+                console.log(`锁定成就: ${achievementId}`);
+            }
+        }
+        
+        // 解锁成就
+        function unlockAchievement(achievementId, title, description) {
+            // 添加到已解锁成就列表
+            unlockedAchievements.push(achievementId);
+            
+            // 保存数据
+            saveDataToLocalStorage();
+            
+            // 显示成就解锁动画
+            showAchievementUnlockedAnimation(title, description);
+            
+            console.log(`解锁成就: ${title} - ${description}`);
+        }
+        
+        // 显示成就解锁动画
+        function showAchievementUnlockedAnimation(title, description) {
+            const achievementNotification = document.createElement('div');
+            achievementNotification.className = 'fixed bottom-4 right-4 bg-dark-card border border-yellow-500 rounded-lg p-4 shadow-lg transform translate-y-full opacity-0 transition-all duration-500 z-50';
+            achievementNotification.innerHTML = `
+                <div class="flex items-center">
+                    <div class="text-yellow-500 text-2xl mr-3">
+                        <i class="fa fa-trophy"></i>
+                    </div>
+                    <div>
+                        <p class="text-yellow-500 font-bold">成就解锁!</p>
+                        <p class="text-white">${title}</p>
+                        <p class="text-gray-400 text-sm">${description}</p>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(achievementNotification);
+            
+            // 触发动画
+            setTimeout(() => {
+                achievementNotification.classList.remove('translate-y-full', 'opacity-0');
+            }, 100);
+            
+            // 3秒后隐藏
+            setTimeout(() => {
+                achievementNotification.classList.add('translate-y-full', 'opacity-0');
+                setTimeout(() => {
+                    document.body.removeChild(achievementNotification);
+                }, 500);
+            }, 3000);
+        }
+        
+        // 更新成就卡片显示
+        function updateAchievementCards() {
+            const achievements = [
+                { id: 'beginner', index: 0 },
+                { id: 'intermediate', index: 1 },
+                { id: 'advanced', index: 2 },
+                { id: 'master', index: 3 }
+            ];
+            
+            achievements.forEach(achievement => {
+                if (unlockedAchievements.includes(achievement.id)) {
+                    achievementCards[achievement.index].classList.add('unlocked');
+                    achievementCards[achievement.index].querySelector('.lock-icon').innerHTML = '<i class="fa fa-trophy text-3xl"></i>';
+                } else {
+                    achievementCards[achievement.index].classList.remove('unlocked');
+                    achievementCards[achievement.index].querySelector('.lock-icon').innerHTML = '<i class="fa fa-lock text-3xl"></i>';
+                }
+            });
+        }
+        
+        // 从文本中提取待办列表
+        function getTodoListFromText(text) {
+            if (!text) return [];
+            
+            // 按行分割文本
+            const lines = text.split('\n');
+            
+            // 过滤空行和空格
+            return lines
+                .map(line => line.trim())
+                .filter(line => line !== '');
+        }
+        
+        // 导入待办 - 修复版
+        function importTodos() {
+            console.log('开始导入待办');
+            const text = document.getElementById('batchTodoInput').value;
+            console.log('输入文本:', text);
+            
+            const importedTodoNames = getTodoListFromText(text);
+            console.log('提取的待办名称:', importedTodoNames);
+            
+            if (importedTodoNames.length === 0) {
+                alert('请输入至少一个待办事项');
+                return;
+            }
+            
+            // 过滤已存在的待办
+            const newTodoNames = importedTodoNames.filter(todoName => 
+                !todos.some(todo => todo.name === todoName)
+            );
+            console.log('过滤后的新待办名称:', newTodoNames);
+            
+            if (newTodoNames.length === 0) {
+                alert('所有待办都已存在');
+                return;
+            }
+            
+            // 添加新待办
+            const addedTodos = newTodoNames.map(name => ({
+                id: Date.now() + Math.floor(Math.random() * 1000),
+                name: name,
+                completed: false
+            }));
+            console.log('创建的新待办对象:', addedTodos);
+            
+            todos.push(...addedTodos);
+            console.log('添加到全局待办列表后:', todos);
+            
+            // 保存数据
+            const saveSuccess = saveDataToLocalStorage();
+            console.log('保存数据结果:', saveSuccess);
+            
+            // 清空输入框
+            document.getElementById('batchTodoInput').value = '';
+            document.getElementById('importCount').textContent = '0';
+            
+            // 更新UI
+            renderTodoList();
+            updateProgress();
+            initProgressChart();
+            
+            alert(`成功导入 ${newTodoNames.length} 个待办`);
+            console.log('批量导入待办完成');
+        }
+        
+        // 加载并设置自定义标题
+        function loadAndSetCustomTitle() {
+            const customTitlePart = document.getElementById('customTitlePart');
+            
+            // 添加双击事件以自定义标题
+            customTitlePart.addEventListener('dblclick', function() {
+                const defaultTitle = '任务';
+                const currentTitle = this.textContent.trim() || defaultTitle;
+                const newTitle = prompt('请输入自定义标题:', currentTitle);
+                
+                if (newTitle !== null && newTitle.trim() !== '') {
+                    // 保存旧标题以便恢复
+                    const oldTitle = this.textContent;
+                    
+                    // 更新显示的标题
+                    this.textContent = newTitle.trim();
+                    
+                    // 更新页面标题
+                    document.title = `${newTitle.trim()}待办`;
+                    
+                    // 更新页脚标题
+                    updateFooterTitle();
+                    
+                    // 保存数据
+                    saveDataToLocalStorage();
+                    
+                    // 添加彩蛋效果 - 改变文字颜色
+                    this.style.transition = 'color 0.5s ease';
+                    this.style.color = '#10b981'; // 绿色
+                    
+                    setTimeout(() => {
+                        this.style.color = ''; // 恢复默认颜色
+                    }, 1000);
+                    
+                    console.log(`标题已更新为: ${newTitle.trim()}`);
+                }
+            });
+        }
+        
+        // 更新页脚标题
+        function updateFooterTitle() {
+            const customTitlePart = document.getElementById('customTitlePart').textContent.trim();
+            const defaultTitle = '任务';
+            const title = customTitlePart || defaultTitle;
+            
+            const footerTitle = document.querySelector('footer p.font-medium');
+            footerTitle.textContent = `${title}待办 © 2025`;
+        }
+        
+        // 选择文件并加载数据
+        function selectFileAndLoadData() {
+            // 创建文件输入元素
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = '.txt';
+            
+            // 文件选择事件
+            fileInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                
+                if (!file) {
+                    console.log('未选择文件');
+                    return;
+                }
+                
+                // 验证文件大小 (最大 1MB)
+                if (file.size > 1024 * 1024) {
+                    alert('文件太大，请选择小于1MB的文件');
+                    return;
+                }
+                
+                const reader = new FileReader();
+                
+                // 读取文件成功
+                reader.addEventListener('load', function(e) {
+                    try {
+                        const content = e.target.result;
+                        
+                        // 验证文件内容是否为空
+                        if (!content || content.trim() === '') {
+                            alert('文件内容为空');
+                            console.error('文件内容为空');
+                            return;
+                        }
+                        
+                        console.log('文件内容:', content);
+                        
+                        // 解析JSON
+                        const data = JSON.parse(content);
+                        
+                        // 验证数据格式
+                        if (!data.todos || !Array.isArray(data.todos)) {
+                            alert('待办数据格式不正确');
+                            console.error('待办数据格式不正确:', data.todos);
+                            return;
+                        }
+                        
+                        // 验证待办数据结构
+                        const validTodos = data.todos.filter(todo => 
+                            todo && typeof todo.id !== 'undefined' && typeof todo.name === 'string' && typeof todo.completed === 'boolean'
+                        );
+                        
+                        if (validTodos.length === 0 && data.todos.length > 0) {
+                            alert('没有有效的待办数据');
+                            console.error('没有有效的待办数据:', data.todos);
+                            return;
+                        }
+                        
+                        // 更新应用数据
+                        todos = validTodos;
+                        todoHistory = data.todoHistory || {};
+                        unlockedAchievements = data.unlockedAchievements || [];
+                        
+                        // 更新自定义标题
+                        if (data.appTitle && typeof data.appTitle === 'string') {
+                            const customTitlePart = document.getElementById('customTitlePart');
+                            customTitlePart.textContent = data.appTitle;
+                            document.title = `${data.appTitle}待办`;
+                            updateFooterTitle();
+                        }
+                        
+                        // 保存数据到本地存储
+                        saveDataToLocalStorage();
+                        
+                        // 更新UI
+                        renderTodoList();
+                        updateProgress();
+                        initProgressChart();
+                        updateAchievementCards();
+                        
+                        alert(`成功加载 ${todos.length} 个待办`);
+                        console.log('数据加载成功:', data);
+                    } catch (error) {
+                        alert('加载数据失败: ' + error.message);
+                        console.error('加载数据失败:', error);
+                        console.error('错误堆栈:', error.stack);
+                    }
+                });
+                
+                // 读取文件失败
+                reader.addEventListener('error', function() {
+                    alert('读取文件失败');
+                    console.error('读取文件失败');
+                });
+                
+                // 开始读取文件
+                reader.readAsText(file);
+            });
+            
+            // 触发文件选择对话框
+            fileInput.click();
+        }
+        
+        // 保存数据到文件
+        function saveDataToFile() {
+            try {
+                const data = {
+                    appTitle: document.getElementById('customTitlePart').textContent,
+                    todos: todos,
+                    todoHistory: todoHistory,
+                    unlockedAchievements: unlockedAchievements,
+                    lastUpdated: new Date().toISOString()
+                };
+                
+                const dataStr = JSON.stringify(data, null, 2);
+                const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+                
+                const exportFileDefaultName = DATA_FILE_NAME;
+                
+                const linkElement = document.createElement('a');
+                linkElement.setAttribute('href', dataUri);
+                linkElement.setAttribute('download', exportFileDefaultName);
+                linkElement.click();
+                
+                console.log('数据已导出到文件');
+                return true;
+            } catch (error) {
+                console.error('保存数据到文件失败:', error);
+                alert('保存数据到文件失败: ' + error.message);
+                return false;
+            }
+        }
+        
+        // 创建新数据
+        function createNewData() {
+            if (confirm('确定要创建新数据吗？当前数据将被清除！')) {
+                // 重置数据
+                todos = [];
+                todoHistory = {};
+                unlockedAchievements = [];
+                
+                // 重置标题为默认值
+                const defaultTitle = '任务';
+                document.getElementById('customTitlePart').textContent = defaultTitle;
+                document.title = `${defaultTitle}待办`;
+                updateFooterTitle();
+                
+                // 保存数据
+                saveDataToLocalStorage();
+                
+                // 更新UI
+                renderTodoList();
+                updateProgress();
+                initProgressChart();
+                updateAchievementCards();
+                
+                alert('已创建新数据');
+                console.log('已创建新数据');
+            }
+        }
+        
+        // 已显示过的句子ID集合，用于避免重复
+        // 从本地存储加载已显示过的句子ID
+        let shownQuoteIds = new Set();
+        try {
+            const savedIds = localStorage.getItem('shown_quote_ids');
+            if (savedIds) {
+                shownQuoteIds = new Set(JSON.parse(savedIds));
+                console.log('从本地存储加载已显示句子ID:', Array.from(shownQuoteIds));
+            }
+        } catch (error) {
+            console.error('加载已显示句子ID失败:', error);
+            shownQuoteIds = new Set();
+        }
+        
+        // 从网络获取随机鼓励语句
+        async function fetchRandomMotivation(showLoading = false) {
+            const motivationQuote = document.getElementById('motivationQuote');
+            const motivationSource = document.getElementById('motivationSource');
+            const refreshBtnText = document.getElementById('refreshBtnText');
+            const refreshLoading = document.getElementById('refreshLoading');
+            
+            // 保存当前句子内容，用于恢复
+            const currentText = motivationQuote.textContent;
+            const currentSource = motivationSource.textContent;
+            
+            // 动态加载提示相关变量
+            let loadingIndicatorTimeout;
+            let loadingDotsInterval;
+            let dotCount = 0;
+            
+            try {
+                console.log('开始获取随机鼓励语句');
+                
+                // 只有在点击刷新按钮时才显示加载状态
+                if (showLoading) {
+                    // 1秒后显示动态加载提示
+                    loadingIndicatorTimeout = setTimeout(() => {
+                        // 显示加载状态
+                        motivationQuote.textContent = "正在获取内容";
+                        motivationSource.textContent = "—— 加载中";
+                        
+                        // 添加动态点效果
+                        loadingDotsInterval = setInterval(() => {
+                            dotCount = (dotCount + 1) % 4;
+                            motivationQuote.textContent = "正在获取内容" + ".".repeat(dotCount);
+                        }, 500);
+                        
+                        refreshBtnText.classList.add('hidden');
+                        refreshLoading.classList.remove('hidden');
+                    }, 1000);
+                }
+                
+                // 尝试从多个API获取句子，增加成功率和内容多样性
+                const apis = [
+                    { url: 'https://api.oick.cn/yiyan/api.php', type: 'yiyan' },
+                    { url: 'https://api.oick.cn/yulu/api.php', type: 'yulu' },
+                    { url: 'https://zenquotes.io/api/random', type: 'zenquotes' },
+                    { url: 'https://api.quotable.io/random', type: 'quotable' },
+                    { url: 'https://api.xemowo.top/api/yan/yan.php', type: 'xemowo' }
+                ];
+                
+                // 随机选择一个API
+                const randomApi = apis[Math.floor(Math.random() * apis.length)];
+                console.log(`选择API: ${randomApi.url} (类型: ${randomApi.type})`);
+                
+                // 调用API
+                const response = await fetch(randomApi.url, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                    }
+                });
+                
+                console.log(`API响应状态: ${response.status}`);
+                
+                // 检查响应状态
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                // 解析响应
+                const data = await response.json();
+                console.log('API返回数据:', data);
+                
+                // 处理不同API的返回格式
+                let quoteText = '';
+                let quoteSource = '网络热门';
+                
+                if (randomApi.type === 'yiyan') {
+                    // 处理一言API返回
+                    if (data.code === 200 && data.msg) {
+                        quoteText = data.msg;
+                        
+                        // 尝试从句子中提取作者信息
+                        const sourceMatch = quoteText.match(/——(.+)$/);
+                        if (sourceMatch && sourceMatch[1]) {
+                            quoteSource = sourceMatch[1].trim();
+                            quoteText = quoteText.replace(/——.+$/, '').trim();
+                        }
+                    } else {
+                        throw new Error('API返回错误: ' + (data.msg || '未知错误'));
+                    }
+                } else if (randomApi.type === 'yulu') {
+                    // 处理语录API返回
+                    if (data.code === 200 && data.data && data.data.content) {
+                        quoteText = data.data.content;
+                        
+                        // 尝试从句子中提取作者信息
+                        const sourceMatch = quoteText.match(/——(.+)$/);
+                        if (sourceMatch && sourceMatch[1]) {
+                            quoteSource = sourceMatch[1].trim();
+                            quoteText = quoteText.replace(/——.+$/, '').trim();
+                        }
+                    } else {
+                        throw new Error('API返回错误: ' + (data.msg || '未知错误'));
+                    }
+                } else if (randomApi.type === 'zenquotes') {
+                    // 处理ZenQuotes API返回
+                    if (Array.isArray(data) && data.length > 0) {
+                        const quoteData = data[0];
+                        if (quoteData.q && quoteData.a) {
+                            quoteText = quoteData.q;
+                            quoteSource = quoteData.a;
+                        } else {
+                            throw new Error('ZenQuotes API返回格式错误');
+                        }
+                    } else {
+                        throw new Error('ZenQuotes API返回空数据');
+                    }
+                } else if (randomApi.type === 'quotable') {
+                    // 处理Quotable API返回
+                    if (data.content && data.author) {
+                        quoteText = data.content;
+                        quoteSource = data.author;
+                    } else {
+                        throw new Error('Quotable API返回格式错误');
+                    }
+                } else if (randomApi.type === 'xemowo') {
+                    // 处理Xemowo API返回
+                    if (data && data.yan) {
+                        quoteText = data.yan;
+                        
+                        // 尝试从句子中提取作者信息
+                        const sourceMatch = quoteText.match(/——(.+)$/);
+                        if (sourceMatch && sourceMatch[1]) {
+                            quoteSource = sourceMatch[1].trim();
+                            quoteText = quoteText.replace(/——.+$/, '').trim();
+                        }
+                    } else {
+                        throw new Error('Xemowo API返回格式错误');
+                    }
+                }
+                
+                // 检查句子是否有效且未显示过
+                if (!quoteText || quoteText.length < 5) {
+                    throw new Error('获取到的句子无效');
+                }
+                
+                console.log(`获取到句子: "${quoteText}" (来源: ${quoteSource})`);
+                
+                // 如果句子太短，尝试扩展它
+                if (quoteText.length < 30) {
+                    quoteText = expandShortQuote(quoteText);
+                    console.log(`扩展后句子: "${quoteText}"`);
+                }
+                
+                // 使用句子内容的哈希作为ID，避免重复显示
+                const quoteId = hashString(quoteText);
+                console.log(`句子哈希ID: ${quoteId}`);
+                
+                // 如果句子已显示过，则重新获取
+                if (shownQuoteIds.has(quoteId)) {
+                    console.log('句子已显示过，重新获取');
+                    // 如果已经显示过太多句子，清空历史记录
+                    if (shownQuoteIds.size > 50) {
+                        console.log('已显示句子超过50个，清空历史记录');
+                        shownQuoteIds.clear();
+                    }
+                    return fetchRandomMotivation(showLoading); // 递归调用重新获取
+                }
+                
+                // 添加到已显示集合
+                shownQuoteIds.add(quoteId);
+                console.log('添加句子到已显示集合');
+                
+                // 保存到本地存储
+                try {
+                    localStorage.setItem('shown_quote_ids', JSON.stringify(Array.from(shownQuoteIds)));
+                    console.log('已保存句子ID到本地存储');
+                } catch (error) {
+                    console.error('保存句子ID到本地存储失败:', error);
+                }
+                
+                // 更新DOM，添加淡入动画
+                motivationQuote.textContent = quoteText;
+                motivationQuote.classList.add('fade-in');
+                motivationSource.textContent = `—— ${quoteSource}`;
+                console.log('更新DOM成功');
+                
+            } catch (error) {
+                console.error('获取随机鼓励语句失败:', error);
+                
+                // 使用扩展的备用句子列表
+                const backupQuotes = [
+                    { text: "高效完成任务，提升生活品质。每一个任务的完成，都是对自己能力的肯定和提升。", source: "网络热门" },
+                    { text: "不要害怕任务的艰巨，而要相信自己的能力。分解任务，逐步攻克，你会发现自己比想象中更强大。", source: "人民日报" },
+                    { text: "今天的努力，明天的实力。坚持完成每一个小任务，积累起来就是巨大的成就。", source: "网络热门" },
+                    { text: "千里之行，始于足下。任何伟大的成就，都是从完成第一个小任务开始的。", source: "老子《道德经》" },
+                    { text: "成功的秘诀在于对目标的执着追求。设定明确的目标，然后一步一个脚印地完成每一个相关任务。", source: "爱因斯坦" },
+                    { text: "每完成一个小任务，就是向大目标迈进一步。不要轻视任何看似微不足道的进步。", source: "人民日报" },
+                    { text: "拖延是任务的大敌，行动是成功的朋友。立即行动，完成你手中的每一个任务。", source: "人民日报" },
+                    { text: "专注当下，全力以赴完成每一个任务。只有全身心投入，才能获得最好的结果。", source: "网络热门" },
+                    { text: "把大任务分解成小步骤，逐一攻克。这种方法可以让任何艰巨的任务变得易于管理。", source: "人民日报" },
+                    { text: "任务完成的喜悦，是最好的奖励。享受这种成就感，并让它成为你完成下一个任务的动力。", source: "人民日报" },
+                    { text: "时间管理的关键，在于任务优先级的合理安排。学会区分轻重缓急，高效完成每一个任务。", source: "人民日报" },
+                    { text: "今天多完成一项任务，明天就少一份压力。不要把今天的任务拖到明天，及时完成才能轻装上阵。", source: "网络热门" },
+                    { text: "每一个任务的完成，都是对自己的肯定。通过完成任务，你正在塑造一个更强大、更自信的自己。", source: "网络热门" },
+                    { text: "有计划地完成任务，才能事半功倍。制定合理的计划，然后严格执行，你会发现效率大大提高。", source: "网络热门" },
+                    { text: "不要被任务压垮，而要学会驾驭任务。把任务看作挑战，而不是负担，你会发现完成任务的乐趣。", source: "网络热门" },
+                    { text: "坚持就是胜利。即使面对困难和挫折，也要坚持完成自己的任务，成功就在不远处。", source: "中国谚语" },
+                    { text: "磨刀不误砍柴工。适当的准备和规划，可以让你更高效地完成任务，取得更好的结果。", source: "中国谚语" },
+                    { text: "一分耕耘，一分收获。你为完成任务付出的每一份努力，都会在未来以某种方式回报你。", source: "中国谚语" },
+                    { text: "台上一分钟，台下十年功。每一个看似轻松的成功背后，都是无数个任务的坚持和完成。", source: "中国谚语" },
+                    { text: "一寸光阴一寸金，寸金难买寸光阴。珍惜时间，高效完成每一个任务，不要让宝贵的时间白白流逝。", source: "中国谚语" }
+                ];
+                
+                // 从备用列表中随机选择，但避免重复
+                let randomBackup;
+                let attempts = 0;
+                
+                do {
+                    randomBackup = backupQuotes[Math.floor(Math.random() * backupQuotes.length)];
+                    attempts++;
+                    
+                    // 如果尝试超过10次仍未找到未显示的句子，清空历史记录
+                    if (attempts > 10) {
+                        console.log('尝试超过10次，清空备用句子历史记录');
+                        shownQuoteIds.clear();
+                    }
+                } while (shownQuoteIds.has(hashString(randomBackup.text)) && attempts <= 20);
+                
+                // 添加到已显示集合
+                shownQuoteIds.add(hashString(randomBackup.text));
+                
+                // 保存到本地存储
+                try {
+                    localStorage.setItem('shown_quote_ids', JSON.stringify(Array.from(shownQuoteIds)));
+                    console.log('已保存备用句子ID到本地存储');
+                } catch (error) {
+                    console.error('保存备用句子ID到本地存储失败:', error);
+                }
+                
+                // 更新DOM，添加淡入动画
+                motivationQuote.textContent = randomBackup.text;
+                motivationQuote.classList.add('fade-in');
+                motivationSource.textContent = `—— ${randomBackup.source}`;
+                console.log(`使用备用句子: "${randomBackup.text}"`);
+                
+            } finally {
+                // 清除动态加载提示
+                clearTimeout(loadingIndicatorTimeout);
+                clearInterval(loadingDotsInterval);
+                
+                // 恢复按钮状态
+                if (showLoading) {
+                    refreshBtnText.classList.remove('hidden');
+                    refreshLoading.classList.add('hidden');
+                }
+                
+                // 移除淡入动画类，以便下次可以再次触发
+                setTimeout(() => {
+                    motivationQuote.classList.remove('fade-in');
+                }, 500);
+            }
+        }
+        
+        // 扩展短句子的函数
+        function expandShortQuote(shortQuote) {
+            const expansions = {
+                "千里之行，始于足下。": "千里之行，始于足下。任何伟大的成就，都是从完成第一个小任务开始的。",
+                "不积跬步，无以至千里；不积小流，无以成江海。": "不积跬步，无以至千里；不积小流，无以成江海。坚持完成每一个小任务，积累起来就是巨大的成就。",
+                "学而不思则罔，思而不学则殆。": "学而不思则罔，思而不学则殆。在完成任务的过程中，既要努力行动，也要不断思考和学习。",
+                "温故而知新，可以为师矣。": "温故而知新，可以为师矣。从已完成的任务中总结经验，你会获得新的见解和能力。",
+                "三人行，必有我师焉。": "三人行，必有我师焉。在完成团队任务时，虚心向他人学习，共同进步。",
+                "天生我材必有用，千金散尽还复来。": "天生我材必有用，千金散尽还复来。相信自己的能力，勇敢面对每一个任务挑战。",
+                "少壮不努力，老大徒伤悲。": "少壮不努力，老大徒伤悲。珍惜时光，及时完成每一个任务，不要留下遗憾。",
+                "路漫漫其修远兮，吾将上下而求索。": "路漫漫其修远兮，吾将上下而求索。完成任务的道路可能漫长，但只要坚持不懈，终会到达终点。",
+                "海纳百川，有容乃大；壁立千仞，无欲则刚。": "海纳百川，有容乃大；壁立千仞，无欲则刚。以宽广的胸怀接纳各种任务，以坚定的意志完成它们。",
+                "宝剑锋从磨砺出，梅花香自苦寒来。": "宝剑锋从磨砺出，梅花香自苦寒来。艰巨的任务能磨练你的能力，最终让你绽放光彩。",
+                "坚持就是胜利。": "坚持就是胜利。即使面对困难和挫折，也要坚持完成自己的任务，成功就在不远处。",
+                "磨刀不误砍柴工。": "磨刀不误砍柴工。适当的准备和规划，可以让你更高效地完成任务，取得更好的结果。",
+                "一分耕耘，一分收获。": "一分耕耘，一分收获。你为完成任务付出的每一份努力，都会在未来以某种方式回报你。",
+                "台上一分钟，台下十年功。": "台上一分钟，台下十年功。每一个看似轻松的成功背后，都是无数个任务的坚持和完成。",
+                "一寸光阴一寸金，寸金难买寸光阴。": "一寸光阴一寸金，寸金难买寸光阴。珍惜时间，高效完成每一个任务，不要让宝贵的时间白白流逝。",
+                "有志者事竟成。": "有志者事竟成。只要有决心和毅力，就没有完成不了的任务。",
+                "世上无难事，只怕有心人。": "世上无难事，只怕有心人。只要你用心去做，任何任务都能找到解决的方法。",
+                "只要功夫深，铁杵磨成针。": "只要功夫深，铁杵磨成针。持之以恒地完成每一个小任务，最终能成就伟大的事业。"
+            };
+            
+            return expansions[shortQuote] || shortQuote;
+        }
+        
+        // 简单的字符串哈希函数
+        function hashString(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                const char = str.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash; // Convert to 32bit integer
+            }
+            return Math.abs(hash).toString();
+        }
+        
+        // 页面加载完成后初始化应用
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化应用
+            initApp();
+            
+            // 页面加载时从网络获取随机鼓励语句（不显示加载状态）
+            fetchRandomMotivation(false);
+            
+            // 鼓励语句刷新按钮
+            const refreshMotivationBtn = document.getElementById('refreshMotivationBtn');
+            if (refreshMotivationBtn) {
+                refreshMotivationBtn.addEventListener('click', function() {
+                    // 点击刷新时显示加载状态
+                    fetchRandomMotivation(true);
+                });
+            }
+        });
+    </script>
+
+
+
+</body></html>
